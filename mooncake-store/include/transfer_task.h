@@ -16,6 +16,8 @@
 #include "transport/transport.h"
 #include "types.h"
 #include "storage_backend.h"
+// Include the NVSHMEM transfer engine API
+#include "nvshmem_transfer_engine.h"
 
 namespace mooncake {
 
@@ -25,7 +27,8 @@ namespace mooncake {
 enum class TransferStrategy {
     LOCAL_MEMCPY = 0,    // Local memory copy using memcpy
     TRANSFER_ENGINE = 1,  // Remote transfer using transfer engine
-    FILE_READ = 2      // File read operation
+    FILE_READ = 2,      // File read operation
+    NVSHMEM_TRANSFER = 3 // GPU-to-GPU transfer using NVSHMEM
 };
 
 /**
@@ -40,6 +43,8 @@ inline std::ostream& operator<<(std::ostream& os,
             return os << "TRANSFER_ENGINE";
         case TransferStrategy::FILE_READ:
             return os << "FILE_READ";
+        case TransferStrategy::NVSHMEM_TRANSFER:
+            return os << "NVSHMEM_TRANSFER";
         default:
             return os << "UNKNOWN";
     }
@@ -186,6 +191,37 @@ class TransferEngineOperationState : public OperationState {
     TransferEngine& engine_;
     BatchID batch_id_;
     size_t batch_size_;
+};
+
+/**
+ * @brief Operation state for NVSHMEM transfers
+ */
+class NvshmemOperationState : public OperationState {
+   public:
+    NvshmemOperationState() = default;
+
+    bool is_completed() override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return result_.has_value();
+    }
+
+    void set_completed(ErrorCode error_code) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            assert(!result_.has_value() && "Result already set for NvshmemOperationState");
+            result_.emplace(error_code);
+        }
+        cv_.notify_all();
+    }
+
+    void wait_for_completion() override {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return result_.has_value(); });
+    }
+
+    TransferStrategy get_strategy() const override {
+        return TransferStrategy::NVSHMEM_TRANSFER;
+    }
 };
 
 /**
@@ -417,6 +453,13 @@ class TransferSubmitter {
     std::optional<TransferFuture> submitFileReadOperation(
     const Replica::Descriptor& replica, std::vector<Slice>& slices, 
     Transport::TransferRequest::OpCode op_code);
+
+    /**
+     * @brief Submit NVSHMEM transfer operation
+     */
+    std::optional<TransferFuture> submitNvshmemTransferOperation(
+        const std::vector<AllocatedBuffer::Descriptor>& handles,
+        std::vector<Slice>& slices, Transport::TransferRequest::OpCode op_code);
 };
 
 }  // namespace mooncake

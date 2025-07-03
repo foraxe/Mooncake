@@ -6,8 +6,91 @@
 #include <cstdlib>
 
 #include "utils.h"
+// Although included in transfer_task.h, explicit include for clarity if needed by .cpp specifics
+// #include "nvshmem_transfer_engine.h"
 
 namespace mooncake {
+
+// Placeholder for NVSHMEM PE mapping and eligibility checks
+// These would need proper implementation based on system configuration and NVSHMEM setup.
+static int get_nvshmem_pe_for_segment(const std::string& segment_name) {
+    // TODO: Implement actual mapping from segment name (e.g., hostname or GPU ID) to NVSHMEM PE.
+    // This mapping should be established during NVSHMEM initialization.
+    // For now, returning a dummy PE or using a simple convention.
+    // Example: if segment_name is "gpu0", return 0; "gpu1", return 1, etc.
+    // This is highly dependent on how segments are named and PEs are identified.
+    // TODO MULTI-NODE: Implement robust PE mapping.
+    // 1. Each PE, on startup (after nvshmem_init), should determine its identity
+    //    (e.g., hostname, GPU UUIDs it controls) and its NVSHMEM PE ID.
+    // 2. This mapping (e.g., {"hostname_gpu0_uuid": pe_id, "hostname_gpu1_uuid": pe_id_other_gpu_same_node})
+    //    should be stored in a distributed metadata store (e.g., etcd).
+    //    The 'segment_name' provided by Mooncake would need to conform to a resolvable ID.
+    //    For example, a segment_name could be "node_hostname/GPU_ID".
+    // 3. This function would then query the metadata store for the PE ID associated with 'segment_name'.
+    // 4. Cache mappings locally to avoid frequent metadata store lookups.
+
+    // Placeholder for testing:
+    if (segment_name == "gpu0" || segment_name == "node0/gpu0") return 0;
+    if (segment_name == "gpu1" || segment_name == "node0/gpu1") return 1;
+    if (segment_name == "node1/gpu0") return 2; // Simulating another node
+
+    // If segment_name is the local hostname (or similar local identifier),
+    // this implies a local operation. NVSHMEM can be used for local GPU-GPU
+    // or CPU-GPU on symmetric memory. The PE would be the current PE.
+    // However, nvshmem_put/get take a *target* PE. If dest is local, it's more complex.
+    // Typically, for P2P, one PE (source) Puts to another PE (dest).
+    // If the 'segment_name' refers to the *local* node/GPU where data should be written *to*
+    // by a *remote* initiator, then this PE mapping is for the *local* PE.
+    // The current `TransferSubmitter` logic assumes `segment_name` in `handles` is the *remote* target.
+    std::string local_simulated_hostname = "localhost_nvshmem_test"; // Or get actual local hostname
+    if (segment_name == local_simulated_hostname) {
+         // This case needs clarification: if the segment_name is local, is it a loopback?
+         // Or is this function only for resolving remote PEs?
+         // For now, assume it means the target is local, which might mean PE = my_pe().
+         // But the put/get API needs a target_pe. If it's a put *to* local memory *from* local memory
+         // via NVSHMEM, that's unusual for this API structure.
+         // Let's assume for now `segment_name` in `handles` is always a remote PE.
+        VLOG(1) << "get_nvshmem_pe_for_segment: segment '" << segment_name << "' appears local. This function expects remote segment names for PE mapping.";
+        return -1; // Indicates not a remote PE to target.
+    }
+
+    LOG(WARNING) << "get_nvshmem_pe_for_segment: No specific PE mapping for segment '" << segment_name << "'. Fallback/Error.";
+    return -1; // Return -1 to indicate PE not found or error.
+}
+
+extern bool is_nvshmem_engine_globally_initialized(); // Declaration for the function in nvshmem_transfer_engine.cpp
+
+static bool is_nvshmem_eligible(const std::vector<AllocatedBuffer::Descriptor>& handles, Transport::TransferRequest::OpCode op_code) {
+    // TODO MULTI-NODE: Implement robust eligibility checks.
+    // 1. NVSHMEM engine must be initialized.
+    // 2. The memory described by `handles` must be symmetric memory registered with NVSHMEM.
+    //    This might involve checking metadata associated with the buffer_address or segment_name.
+    //    For example, a global registry of NVSHMEM-allocated regions, or specific flags on memory.
+    // 3. The target segment (derived from handle.segment_name_) must map to a valid, reachable PE.
+    //    (i.e., get_nvshmem_pe_for_segment(handle.segment_name_) should return a valid PE).
+    // 4. For inter-node, appropriate network (InfiniBand, RoCE) must be configured and up.
+
+    if (handles.empty()) return false;
+
+    if (!is_nvshmem_engine_globally_initialized()) {
+        VLOG(2) << "NVSHMEM not eligible: engine not initialized.";
+        return false;
+    }
+
+    // For current testing and multi-node conceptualization:
+    // - Assume any segment starting with "gpu" or "nodeX/gpuY" is potentially NVSHMEM eligible.
+    // - And that it maps to a valid PE.
+    for (const auto& handle : handles) {
+        if (handle.segment_name_.rfind("gpu", 0) == 0 || handle.segment_name_.rfind("node", 0) == 0) {
+            if (get_nvshmem_pe_for_segment(handle.segment_name_) != -1) {
+                 VLOG(2) << "NVSHMEM eligible: found handle for potential NVSHMEM segment: " << handle.segment_name_;
+                return true;
+            }
+        }
+    }
+    VLOG(2) << "NVSHMEM not eligible: no handle segment_name matches 'gpu*' or 'node*' pattern, or PE mapping failed.";
+    return false;
+}
 
 // ============================================================================
 // FilereadWorkerPool Implementation
@@ -380,6 +463,24 @@ TransferSubmitter::TransferSubmitter(TransferEngine& engine,
 
     VLOG(1) << "TransferSubmitter initialized with memcpy_enabled="
             << memcpy_enabled_;
+
+    // TODO: NVSHMEM Initialization:
+    // nvshmem_engine_init() should be called once globally before any NVSHMEM operations.
+    // Consider calling it in a higher-level initialization routine (e.g., main application setup,
+    // or when the first client/service requiring NVSHMEM is created).
+    // For now, we assume it's initialized. If it's not, NVSHMEM operations will fail.
+    // int init_ret = nvshmem_engine_init();
+    // if (init_ret != 0) {
+    //     LOG(ERROR) << "NVSHMEM Engine initialization failed with code: " << init_ret
+    //                << ". NVSHMEM transfers will not be available.";
+    //     // Set a flag to disable NVSHMEM strategy if init fails
+    // } else {
+    //     VLOG(0) << "NVSHMEM Engine initialized successfully by TransferSubmitter (or assumed to be).";
+    //     // Consider calling nvshmem_engine_finalize() in ~TransferSubmitter() or a global shutdown hook.
+    // }
+    // For the placeholder, nvshmem_engine_init() is simple, but a real one might take time or fail.
+    // We also need a way to get local_rank or PE ID for current process to avoid self-transfer issues if PE mapping is naive.
+    VLOG(0) << "NVSHMEM Engine initialization should be handled here or globally.";
 }
 
 std::optional<TransferFuture> TransferSubmitter::submit(
@@ -402,6 +503,8 @@ std::optional<TransferFuture> TransferSubmitter::submit(
                 return submitMemcpyOperation(handles, slices, op_code);
             case TransferStrategy::TRANSFER_ENGINE:
                 return submitTransferEngineOperation(handles, slices, op_code);
+            case TransferStrategy::NVSHMEM_TRANSFER:
+                return submitNvshmemTransferOperation(handles, slices, op_code);
             default:
                 LOG(ERROR) << "Unknown transfer strategy: " << strategy;
                 return std::nullopt;
@@ -526,21 +629,91 @@ std::optional<TransferFuture> TransferSubmitter::submitFileReadOperation(
     return TransferFuture(state);
 }
 
+std::optional<TransferFuture> TransferSubmitter::submitNvshmemTransferOperation(
+    const std::vector<AllocatedBuffer::Descriptor>& handles,
+    std::vector<Slice>& slices, Transport::TransferRequest::OpCode op_code) {
+
+    VLOG(1) << "Attempting to submit NVSHMEM transfer operation.";
+    auto state = std::make_shared<NvshmemOperationState>();
+
+    // TODO: Ensure nvshmem_engine_init() has been called successfully before this point.
+    // This might be done in TransferSubmitter's constructor or globally.
+
+    for (size_t i = 0; i < handles.size(); ++i) {
+        const auto& handle = handles[i]; // Remote memory descriptor
+        const auto& slice = slices[i];   // Local memory descriptor
+
+        // Determine the target PE. The segment_name in handle should map to a PE.
+        // The remote buffer address is handle.buffer_address_
+        // The local buffer is slice.ptr
+        // Size is handle.size_ (should be same as slice.size)
+        int target_pe = get_nvshmem_pe_for_segment(handle.segment_name_);
+
+        VLOG(2) << "NVSHMEM Op: " << ((op_code == Transport::TransferRequest::READ) ? "GET" : "PUT")
+                << "Slice Local Ptr: " << slice.ptr
+                << ", Handle Remote Addr: " << reinterpret_cast<void*>(handle.buffer_address_)
+                << ", Size: " << handle.size_
+                << ", Target PE: " << target_pe
+                << ", Segment Name: " << handle.segment_name_;
+
+        int result = -1;
+        if (op_code == Transport::TransferRequest::READ) {
+            // READ from remote GPU (handle) to local memory (slice)
+            // nvshmem_engine_get(local_dest, remote_source, size, remote_pe)
+            result = nvshmem_engine_get(slice.ptr, reinterpret_cast<const void*>(handle.buffer_address_), handle.size_, target_pe);
+        } else { // WRITE
+            // WRITE from local memory (slice) to remote GPU (handle)
+            // nvshmem_engine_put(remote_dest, local_source, size, remote_pe)
+            result = nvshmem_engine_put(reinterpret_cast<void*>(handle.buffer_address_), slice.ptr, handle.size_, target_pe);
+        }
+
+        if (result != 0) {
+            LOG(ERROR) << "NVSHMEM engine operation failed for handle " << i
+                       << " (segment: " << handle.segment_name_ << ", address: " << reinterpret_cast<void*>(handle.buffer_address_)
+                       << ") with op_code " << op_code << ". Error code: " << result;
+            state->set_completed(ErrorCode::TRANSFER_FAIL);
+            return TransferFuture(state); // Return on first failure
+        }
+    }
+
+    // If all operations are successful (in this synchronous model)
+    // A barrier might be needed here if operations are truly async and need synchronization point
+    // For now, nvshmem_engine_put/get are blocking based on placeholder nvshmem.h
+    // If they were non-blocking, a nvshmem_engine_barrier() or similar sync would be needed.
+    // nvshmem_engine_barrier(); // Optional: consider if needed for true async or batching logic
+
+    state->set_completed(ErrorCode::OK);
+    VLOG(1) << "NVSHMEM transfer operation submitted successfully with " << handles.size() << " operations.";
+    return TransferFuture(state);
+}
+
 TransferStrategy TransferSubmitter::selectStrategy(
     const std::vector<AllocatedBuffer::Descriptor>& handles,
     const std::vector<Slice>& slices) const {
+    // TODO: Add a check here to see if nvshmem_engine is initialized and available.
+    // For now, assume nvshmem_active is true if we want to test this path.
+    // bool nvshmem_initialized = nvshmem_engine_is_initialized(); // Needs this function in nvshmem_transfer_engine
+    bool nvshmem_initialized = true; // Placeholder
+
+    if (nvshmem_initialized && is_nvshmem_eligible(handles, Transport::TransferRequest::READ)) { // OpCode doesn't strictly matter for eligibility check here
+        VLOG(1) << "Selected NVSHMEM_TRANSFER strategy.";
+        return TransferStrategy::NVSHMEM_TRANSFER;
+    }
+
     // Check if memcpy operations are enabled via environment variable
     if (!memcpy_enabled_) {
         VLOG(2) << "Memcpy operations disabled via MC_STORE_MEMCPY environment "
-                   "variable";
+                   "variable, and NVSHMEM not eligible/active. Falling back to TRANSFER_ENGINE.";
         return TransferStrategy::TRANSFER_ENGINE;
     }
 
     // Check conditions for local memcpy optimization
     if (isLocalTransfer(handles)) {
+        VLOG(1) << "Selected LOCAL_MEMCPY strategy.";
         return TransferStrategy::LOCAL_MEMCPY;
     }
 
+    VLOG(1) << "No special strategy (NVSHMEM/MEMCPY) applicable, falling back to TRANSFER_ENGINE.";
     return TransferStrategy::TRANSFER_ENGINE;
 }
 

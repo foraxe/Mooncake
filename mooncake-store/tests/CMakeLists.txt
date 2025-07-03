@@ -90,4 +90,15 @@ target_link_libraries(segment_test PUBLIC
 )
 add_test(NAME segment_test COMMAND segment_test)
 
+add_executable(nvshmem_kv_transfer_test nvshmem_kv_transfer_test.cpp)
+target_link_libraries(nvshmem_kv_transfer_test PUBLIC
+    mooncake_store
+    # cachelib_memory_allocator # Not directly used by this test from what's written
+    glog
+    gtest
+    gtest_main
+    pthread
+)
+add_test(NAME nvshmem_kv_transfer_test COMMAND nvshmem_kv_transfer_test)
+
 add_subdirectory(e2e)

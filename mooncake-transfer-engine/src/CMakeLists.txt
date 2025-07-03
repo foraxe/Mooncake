@@ -47,6 +47,11 @@ if (USE_CUDA)
   endif()
 endif()
 
+# Add NVSHMEM placeholder includes and library paths
+target_include_directories(transfer_engine PRIVATE ${CMAKE_SOURCE_DIR}/nvshmem_placeholder/include)
+target_link_directories(transfer_engine PRIVATE ${CMAKE_SOURCE_DIR}/nvshmem_placeholder/lib)
+target_link_libraries(transfer_engine PUBLIC nvshmem)
+
 if (USE_ASCEND)
   file(GLOB ASCEND_TOOLKIT_ROOT "/usr/local/Ascend/ascend-toolkit/latest/*-linux")
   file(GLOB MPI_LIB_DIR "/usr/local/mpich-*/lib/")
