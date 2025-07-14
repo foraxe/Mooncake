@@ -39,6 +39,30 @@
 #endif
 
 namespace mooncake {
+
+//
+// This file defines the `TransferEngine` class, which is the central component
+// of the Mooncake data transfer system. The `TransferEngine` is responsible for
+// managing all aspects of data transfer, including:
+//
+// - Initializing and managing transport protocols (e.g., TCP, RDMA).
+// - Discovering the network topology and available hardware resources.
+// - Managing memory registration and allocation for data transfers.
+// - Submitting and tracking the status of data transfer requests.
+// - Providing a unified interface for data transfer across different protocols
+//   and hardware.
+//
+// For developers new to Mooncake or high-performance data transfer, this file
+// is an excellent starting point. It provides a high-level overview of the
+// system's architecture and functionality, and it demonstrates how to use the
+// `TransferEngine` to perform efficient data transfers.
+//
+// The `TransferEngine` is designed to be highly extensible and customizable.
+// It supports a variety of transport protocols and can be easily extended to
+// support new protocols and hardware. It also provides a flexible and powerful
+// API that allows developers to fine-tune the performance of their data
+// transfers.
+//
 using TransferRequest = Transport::TransferRequest;
 using TransferStatus = Transport::TransferStatus;
 using TransferStatusEnum = Transport::TransferStatusEnum;

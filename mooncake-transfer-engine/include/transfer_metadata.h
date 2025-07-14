@@ -35,6 +35,32 @@
 #include "topology.h"
 
 namespace mooncake {
+
+//
+// This file defines the `TransferMetadata` class and its associated data
+// structures. The `TransferMetadata` class is responsible for managing all
+// metadata related to data transfers in the Mooncake system. This includes:
+//
+// - Storing and retrieving information about memory segments, such as their
+//   name, protocol, and location.
+// - Managing information about network devices, such as their name, GUID, and
+//   LID.
+// - Handling handshake and notification messages between nodes.
+// - Providing a unified interface for accessing and manipulating transfer
+//   metadata.
+//
+// For developers new to Mooncake or distributed systems, this file is an
+// excellent resource for understanding how the system manages and tracks data
+// transfers. The data structures are designed to be self-describing and easy
+// to understand, and the `TransferMetadata` class provides a clear and concise
+// API for interacting with the metadata.
+//
+// The `TransferMetadata` class is designed to be highly extensible and
+// customizable. It supports a variety of storage backends (e.g., etcd, Redis)
+// and can be easily extended to support new backends. It also provides a
+// flexible and powerful API that allows developers to fine-tune the performance
+// of their metadata operations.
+//
 struct MetadataStoragePlugin;
 struct HandShakePlugin;
 

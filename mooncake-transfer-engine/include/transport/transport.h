@@ -31,6 +31,26 @@
 #include "transfer_metadata.h"
 
 namespace mooncake {
+
+//
+// This file defines the `Transport` class, which is the abstract base class for
+// all transport protocols in the Mooncake system. The `Transport` class defines
+// a common interface for sending and receiving data, regardless of the
+// underlying communication mechanism (e.g., TCP, RDMA, NVMe-oF).
+//
+// The `Transport` class is designed to be highly extensible and customizable.
+// It allows new transport protocols to be easily added to the system without
+// requiring any changes to the core `TransferEngine`. This makes it possible
+// to support a wide variety of hardware and network configurations, and to
+// optimize data transfers for specific use cases.
+//
+// For developers new to Mooncake or high-performance data transfer, this file
+// is an excellent resource for understanding how the system abstracts away the
+// complexities of different communication protocols. It provides a clear and
+// concise interface for sending and receiving data, and it demonstrates how to
+// use the `Transport` class to build high-performance data transfer
+// applications.
+//
 class TransferMetadata;
 /// By default, these functions return 0 (or non-null pointer) on success and
 /// return -1 (or null pointer) on failure. The errno is set accordingly on
