@@ -1,0 +1,11 @@
+--2025-09-01 03:53:16--  https://developer.download.nvidia.cn/assets/secure/nvshmem/nvshmem_src_cuda12-all-all-3.3.24.tar.gz?__token__=exp=1756700563~hmac=f00b6cb92ff7fd94008bda9108850b749f24925301ea1779c43e78c70761af7d
+Resolving developer.download.nvidia.cn (developer.download.nvidia.cn)... 66.253.47.121, 23.248.173.26
+Connecting to developer.download.nvidia.cn (developer.download.nvidia.cn)|66.253.47.121|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 754325 (737K) [application/x-gzip]
+Saving to: 'nvshmem_src_cuda12-all-all-3.3.24.tar.gz?__token__=exp=1756700563~hmac=f00b6cb92ff7fd94008bda9108850b749f24925301ea1779c43e78c70761af7d'
+
+                  nvshmem_src_cuda1   0%[                                                                   ]       0  --.-KB/s               nvshmem_src_cuda12-all-all-3.3.24.t 100%[==================================================================>] 736.65K  --.-KB/s    in 0.1s    
+
+2025-09-01 03:53:18 (5.59 MB/s) - 'nvshmem_src_cuda12-all-all-3.3.24.tar.gz?__token__=exp=1756700563~hmac=f00b6cb92ff7fd94008bda9108850b749f24925301ea1779c43e78c70761af7d' saved [754325/754325]
+
