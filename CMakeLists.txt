@@ -41,6 +41,10 @@ endif()
 add_subdirectory(mooncake-common)
 include_directories(mooncake-common/etcd)
 
+# Use the NVSHMEM installation under /opt/nvshmem.
+include_directories(/opt/nvshmem/include)
+link_directories(/opt/nvshmem/lib)
+
 add_subdirectory(mooncake-transfer-engine)
 include_directories(mooncake-transfer-engine/include)
 

@@ -4,6 +4,8 @@ add_subdirectory(transport)
 
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+find_package(MPI REQUIRED)
+
 add_library(transfer_engine ${ENGINE_SOURCES} $<TARGET_OBJECTS:transport>)
 if (BUILD_SHARED_LIBS)
   install(TARGETS transfer_engine DESTINATION lib)
@@ -47,10 +49,10 @@ if (USE_CUDA)
   endif()
 endif()
 
-# Add NVSHMEM placeholder includes and library paths
-target_include_directories(transfer_engine PRIVATE ${CMAKE_SOURCE_DIR}/nvshmem_placeholder/include)
-target_link_directories(transfer_engine PRIVATE ${CMAKE_SOURCE_DIR}/nvshmem_placeholder/lib)
-target_link_libraries(transfer_engine PUBLIC nvshmem)
+# Link against NVSHMEM and MPI
+target_include_directories(transfer_engine PRIVATE /opt/nvshmem/include)
+target_link_directories(transfer_engine PRIVATE /opt/nvshmem/lib)
+target_link_libraries(transfer_engine PUBLIC nvshmem MPI::MPI_CXX)
 
 if (USE_ASCEND)
   file(GLOB ASCEND_TOOLKIT_ROOT "/usr/local/Ascend/ascend-toolkit/latest/*-linux")
