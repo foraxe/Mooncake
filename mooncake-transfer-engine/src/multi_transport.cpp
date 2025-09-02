@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "multi_transport.h"
+
 #include <string>
 
 #include "config.h"
@@ -30,8 +31,9 @@
 #ifdef USE_MNNVL
 #include "transport/nvlink_transport/nvlink_transport.h"
 #endif
-
 #include <cassert>
+
+#include "transport/nvshmem_transport/nvshmem_transport.h"
 
 namespace mooncake {
 MultiTransport::MultiTransport(std::shared_ptr<TransferMetadata> metadata,
@@ -151,26 +153,27 @@ Status MultiTransport::getTransferStatus(BatchID batch_id, size_t task_id,
     return Status::OK();
 }
 
-Status MultiTransport::getBatchTransferStatus(BatchID batch_id, TransferStatus &status) {
+Status MultiTransport::getBatchTransferStatus(BatchID batch_id,
+                                              TransferStatus &status) {
     auto &batch_desc = *((BatchDesc *)(batch_id));
     const size_t task_count = batch_desc.task_list.size();
     status.transferred_bytes = 0;
-    
+
     if (task_count == 0) {
         status.s = Transport::TransferStatusEnum::COMPLETED;
         return Status::OK();
     }
-    
+
     size_t success_count = 0;
     for (size_t task_id = 0; task_id < task_count; task_id++) {
         TransferStatus task_status;
         auto ret = getTransferStatus(batch_id, task_id, task_status);
-        
+
         if (!ret.ok()) {
             status.s = Transport::TransferStatusEnum::FAILED;
             return Status::OK();
         }
-        
+
         if (task_status.s == Transport::TransferStatusEnum::COMPLETED) {
             status.transferred_bytes += task_status.transferred_bytes;
             success_count++;
@@ -179,10 +182,10 @@ Status MultiTransport::getBatchTransferStatus(BatchID batch_id, TransferStatus &
             return Status::OK();
         }
     }
-    
-    status.s = (success_count == task_count) ? 
-           Transport::TransferStatusEnum::COMPLETED : 
-           Transport::TransferStatusEnum::WAITING;
+
+    status.s = (success_count == task_count)
+                   ? Transport::TransferStatusEnum::COMPLETED
+                   : Transport::TransferStatusEnum::WAITING;
     return Status::OK();
 }
 
@@ -212,6 +215,9 @@ Transport *MultiTransport::installTransport(const std::string &proto,
         transport = new NvlinkTransport();
     }
 #endif
+    else if (std::string(proto) == "nvshmem") {
+        transport = new NvshmemTransport();
+    }
 
     if (!transport) {
         LOG(ERROR) << "Unsupported transport " << proto

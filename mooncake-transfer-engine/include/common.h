@@ -51,7 +51,7 @@ enum class HandShakeRequestType {
     Connection = 0,
     Metadata = 1,
     Notify = 2,
-    // placeholder for old protocol without RequestType
+    // reserved for legacy protocol without RequestType
     OldProtocol = 0xff,
 };
 

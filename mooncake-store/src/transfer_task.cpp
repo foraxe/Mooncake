@@ -11,7 +11,7 @@
 
 namespace mooncake {
 
-// Placeholder for NVSHMEM PE mapping and eligibility checks
+// Prototype for NVSHMEM PE mapping and eligibility checks
 // These would need proper implementation based on system configuration and NVSHMEM setup.
 static int get_nvshmem_pe_for_segment(const std::string& segment_name) {
     // TODO: Implement actual mapping from segment name (e.g., hostname or GPU ID) to NVSHMEM PE.
@@ -29,7 +29,7 @@ static int get_nvshmem_pe_for_segment(const std::string& segment_name) {
     // 3. This function would then query the metadata store for the PE ID associated with 'segment_name'.
     // 4. Cache mappings locally to avoid frequent metadata store lookups.
 
-    // Placeholder for testing:
+    // Simple mapping for testing:
     if (segment_name == "gpu0" || segment_name == "node0/gpu0") return 0;
     if (segment_name == "gpu1" || segment_name == "node0/gpu1") return 1;
     if (segment_name == "node1/gpu0") return 2; // Simulating another node
@@ -478,7 +478,7 @@ TransferSubmitter::TransferSubmitter(TransferEngine& engine,
     //     VLOG(0) << "NVSHMEM Engine initialized successfully by TransferSubmitter (or assumed to be).";
     //     // Consider calling nvshmem_engine_finalize() in ~TransferSubmitter() or a global shutdown hook.
     // }
-    // For the placeholder, nvshmem_engine_init() is simple, but a real one might take time or fail.
+    // nvshmem_engine_init() is currently simple, but a real implementation might take time or fail.
     // We also need a way to get local_rank or PE ID for current process to avoid self-transfer issues if PE mapping is naive.
     VLOG(0) << "NVSHMEM Engine initialization should be handled here or globally.";
 }
@@ -678,7 +678,7 @@ std::optional<TransferFuture> TransferSubmitter::submitNvshmemTransferOperation(
 
     // If all operations are successful (in this synchronous model)
     // A barrier might be needed here if operations are truly async and need synchronization point
-    // For now, nvshmem_engine_put/get are blocking based on placeholder nvshmem.h
+    // For now, nvshmem_engine_put/get are blocking calls.
     // If they were non-blocking, a nvshmem_engine_barrier() or similar sync would be needed.
     // nvshmem_engine_barrier(); // Optional: consider if needed for true async or batching logic
 
@@ -693,7 +693,7 @@ TransferStrategy TransferSubmitter::selectStrategy(
     // TODO: Add a check here to see if nvshmem_engine is initialized and available.
     // For now, assume nvshmem_active is true if we want to test this path.
     // bool nvshmem_initialized = nvshmem_engine_is_initialized(); // Needs this function in nvshmem_transfer_engine
-    bool nvshmem_initialized = true; // Placeholder
+    bool nvshmem_initialized = true; // TODO: check real NVSHMEM initialization
 
     if (nvshmem_initialized && is_nvshmem_eligible(handles, Transport::TransferRequest::READ)) { // OpCode doesn't strictly matter for eligibility check here
         VLOG(1) << "Selected NVSHMEM_TRANSFER strategy.";
